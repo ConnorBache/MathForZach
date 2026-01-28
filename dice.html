@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dice Distribution</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{--muted:#a1a1aa;--surface:#0b1220;}
+    html,body{height:100%}
+    body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,"Noto Sans",sans-serif;background:linear-gradient(180deg,#0b1220 0%,#0b1324 100%);color:#e5e7eb}
+    .sheet{max-width:1100px}
+    .card{background:rgba(17,24,39,.75);backdrop-filter: blur(6px); border:1px solid rgba(255,255,255,.08)}
+    .cell{background:#0f172a;border:1px solid rgba(255,255,255,.12)}
+    .subtle{color:var(--muted)}
+    .ring:focus{box-shadow:0 0 0 3px rgba(34,211,238,.35)}
+    .stickyHead thead th{position:sticky;top:0;background:rgba(2,6,23,.92);backdrop-filter: blur(6px);z-index:1}
+    .barWrap{height:220px}
+    .bars{height:180px}
+    .bar{height:100%; background:linear-gradient(180deg, rgba(34,211,238,.85), rgba(34,211,238,.25)); border-left:1px solid rgba(255,255,255,.06)}
+    @media print {
+      body{background:white;color:black}
+      .card{background:white;border:1px solid #d1d5db}
+      .cell{background:white;border:1px solid #d1d5db}
+      .no-print{display:none}
+      .stickyHead thead th{position:static;background:white}
+    }
+  </style>
+</head>
+<body>
+  <main class="sheet mx-auto p-6 sm:p-8 lg:p-10">
+    <section class="card rounded-2xl p-6 mb-6">
+      <div class="flex flex-wrap items-end gap-4">
+        <div class="flex-1 min-w-[260px]">
+          <h1 class="text-xl font-bold text-cyan-300">Attack Calculator (d6 DP)</h1>
+          <p class="text-sm subtle mt-1">Enter <span class="text-white/90">res</span>, <span class="text-white/90">BAB</span>, and <span class="text-white/90">atkDice</span>, then calculate. Shows average damage, hit chance, and the full distribution.</p>
+        </div>
+        <button id="copyCsvBtn" class="no-print rounded-xl px-4 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10">
+          Copy distribution (CSV)
+        </button>
+    </section>
+
+    <section class="card rounded-2xl p-6">
+      <div class="flex flex-wrap gap-4 items-end">
+        <div class="w-44">
+          <label class="text-xs uppercase tracking-wider subtle">res</label>
+          <input id="res" type="number" step="1" value="0"
+                 class="cell ring mt-1 w-full rounded-xl px-3 py-2 ring-0 ring-transparent focus:ring-2 focus:ring-cyan-300"
+                 placeholder="0" />
+        </div>
+
+        <div class="w-44">
+          <label class="text-xs uppercase tracking-wider subtle">BAB</label>
+          <input id="bab" type="number" step="1" value="0"
+                 class="cell ring mt-1 w-full rounded-xl px-3 py-2 ring-0 ring-transparent focus:ring-2 focus:ring-cyan-300"
+                 placeholder="0" />
+        </div>
+
+        <div class="w-44">
+          <label class="text-xs uppercase tracking-wider subtle">atkDice</label>
+          <input id="atkDice" type="number" min="1" max="1000" value="10"
+                 class="cell ring mt-1 w-full rounded-xl px-3 py-2 ring-0 ring-transparent focus:ring-2 focus:ring-cyan-300"
+                 placeholder="10" />
+        </div>
+
+        <label class="flex items-center gap-2 select-none">
+          <input id="cover" type="checkbox" class="h-4 w-4 accent-cyan-400" />
+          <span class="text-sm subtle">Cover (unused for now)</span>
+        </label>
+
+        <div class="flex gap-2 no-print">
+          <button id="calcBtn" class="rounded-xl px-4 py-2.5 bg-cyan-500/20 border border-cyan-300/30 hover:bg-cyan-500/30">
+            Calculate
+          </button>
+          <button id="resetBtn" class="rounded-xl px-4 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10">
+            Reset
+          </button>
+        </div>
+      </div>
+
+      <div id="status" class="mt-4 text-sm subtle"></div>
+
+      <div class="mt-5 grid md:grid-cols-2 gap-4">
+        <div class="overflow-auto rounded-xl border border-white/10">
+          <table class="w-full text-sm">
+            <thead class="bg-white/5 text-left subtle">
+              <tr>
+                <th class="px-4 py-3">Metric</th>
+                <th class="px-4 py-3">Value</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/10" id="summaryBody"></tbody>
+          </table>
+        </div>
+
+        <div class="overflow-auto rounded-xl border border-white/10">
+          <table class="w-full text-sm">
+            <thead class="bg-white/5 text-left subtle">
+              <tr>
+                <th class="px-4 py-3">Notes</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/10">
+              <tr><td class="px-4 py-3 subtle">Distribution is sorted by sum (ascending).</td></tr>
+              <tr><td class="px-4 py-3 subtle">Percent and cumulative percent are derived from probabilities.</td></tr>
+              <tr><td class="px-4 py-3 subtle">If you enter very large values, the table will still list the full distribution but calculation may take longer.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="mt-5 rounded-xl border border-white/10 overflow-hidden">
+        <div class="px-4 py-3 bg-white/5 flex items-center justify-between gap-4">
+          <div class="text-sm font-semibold">Distribution (bar chart)</div>
+          <div id="barMeta" class="text-xs subtle"></div>
+        </div>
+        <div class="barWrap p-3">
+          <div id="bars" class="bars w-full grid items-end"></div>
+          <div class="mt-2 flex justify-between text-xs subtle">
+            <div id="barMin">—</div>
+            <div id="barMax">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-5 overflow-auto rounded-xl border border-white/10">
+        <table class="w-full text-sm stickyHead">
+          <thead class="text-left subtle">
+            <tr>
+              <th class="px-4 py-3 w-24">Sum</th>
+              <th class="px-4 py-3 w-44">Probability</th>
+              <th class="px-4 py-3 w-40">Percent</th>
+              <th class="px-4 py-3 w-44">Cumulative %</th>
+            </tr>
+          </thead>
+          <tbody id="distBody" class="divide-y divide-white/10"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="./index.js"></script>
+  <script>
+    (() => {
+      "use strict";
+
+      const $ = (id) => document.getElementById(id);
+      const calcBtn = $("calcBtn");
+      const resetBtn = $("resetBtn");
+      const copyCsvBtn = $("copyCsvBtn");
+      const statusEl = $("status");
+      const distBody = $("distBody");
+      const summaryBody = $("summaryBody");
+      const barsEl = $("bars");
+      const barMetaEl = $("barMeta");
+      const barMinEl = $("barMin");
+      const barMaxEl = $("barMax");
+      const resEl = $("res");
+      const babEl = $("bab");
+      const atkDiceEl = $("atkDice");
+      const coverEl = $("cover");
+
+      function setStatus(text) {
+        statusEl.textContent = text || "";
+      }
+
+      function clampInt(value, min, max) {
+        const n = Math.floor(Number(value));
+        if (!Number.isFinite(n)) return min;
+        return Math.min(max, Math.max(min, n));
+      }
+
+      function formatProb(p) {
+        // Keep stable + readable across the full table.
+        if (p === 0) return "0";
+        if (p >= 0.001) return p.toFixed(6);
+        return p.toExponential(4);
+      }
+
+      function formatPercent(p) {
+        return (p * 100).toFixed(4) + "%";
+      }
+
+      function getSettingsFromUI() {
+        const res = clampInt(resEl.value, -1_000_000, 1_000_000);
+        const bab = clampInt(babEl.value, -1_000_000, 1_000_000);
+        const atkDice = clampInt(atkDiceEl.value, 1, 1000);
+        resEl.value = String(res);
+        babEl.value = String(bab);
+        atkDiceEl.value = String(atkDice);
+        const cover = Boolean(coverEl.checked); // unused for now
+        return { res, bab, atkDice, cover };
+      }
+
+      function safePowInt(base, exp) {
+        // Used only for display; avoid Infinity strings for huge values.
+        const b = Number(base);
+        const e = Number(exp);
+        const n = Math.pow(b, e);
+        if (!Number.isFinite(n)) return "Very large";
+        if (n > 9e15) return "Very large";
+        return String(Math.round(n));
+      }
+
+      function renderSummary({ res, bab, atkDice, cover }, calcResult, dist) {
+        const sides = 6; // always d6
+
+        const rows = [
+          ["Inputs", `res=${res}, BAB=${bab}, atkDice=${atkDice}, cover=${cover}`],
+          ["Hit chance", typeof calcResult?.hitChance === "number" ? formatPercent(calcResult.hitChance) : "—"],
+          ["Average damage", typeof calcResult?.averageDamage === "number" ? calcResult.averageDamage.toFixed(6) : "—"],
+          ["Distinct sums (rows)", Array.isArray(dist) ? String(dist.length) : "—"],
+          ["Total outcomes (atkDice only)", safePowInt(sides, atkDice)],
+        ];
+
+        summaryBody.innerHTML = rows.map(([k, v]) => `
+          <tr>
+            <td class="px-4 py-2.5 subtle">${k}</td>
+            <td class="px-4 py-2.5 font-semibold">${v}</td>
+          </tr>
+        `).join("");
+      }
+
+      function renderDistributionTable(dist) {
+        let cumulative = 0;
+        distBody.innerHTML = dist.map(([sum, p]) => {
+          cumulative += p;
+          const cumPct = Math.min(1, cumulative);
+          return `
+            <tr>
+              <td class="px-4 py-2.5 font-semibold">${sum}</td>
+              <td class="px-4 py-2.5">${formatProb(p)}</td>
+              <td class="px-4 py-2.5">${formatPercent(p)}</td>
+              <td class="px-4 py-2.5">${formatPercent(cumPct)}</td>
+            </tr>
+          `;
+        }).join("");
+      }
+
+      function renderBarChart(dist) {
+        if (!Array.isArray(dist) || dist.length === 0) {
+          barsEl.innerHTML = "";
+          barsEl.style.gridTemplateColumns = "1fr";
+          barMetaEl.textContent = "";
+          barMinEl.textContent = "—";
+          barMaxEl.textContent = "—";
+          return;
+        }
+
+        const sums = dist.map(([sum]) => sum);
+        const minSum = Math.min(...sums);
+        const maxSum = Math.max(...sums);
+        let maxP = 0;
+        for (const [, p] of dist) if (p > maxP) maxP = p;
+
+        barsEl.style.gridTemplateColumns = `repeat(${dist.length}, minmax(1px, 1fr))`;
+        barsEl.innerHTML = dist.map(([sum, p]) => {
+          const h = maxP > 0 ? (p / maxP) * 100 : 0;
+          return `<div class="bar" title="sum=${sum}\nprob=${formatProb(p)}" style="height:${h}%"></div>`;
+        }).join("");
+
+        barMetaEl.textContent = `max prob: ${formatProb(maxP)} (${dist.length} sums)`;
+        barMinEl.textContent = `min: ${minSum}`;
+        barMaxEl.textContent = `max: ${maxSum}`;
+      }
+
+      function computeAndRender() {
+        if (!window.DiceMath || typeof window.DiceMath.fullCalculation !== "function") {
+          setStatus("Could not load DiceMath from index.js. Make sure index.js is in the same folder as this file.");
+          return;
+        }
+
+        const settings = getSettingsFromUI();
+        const t0 = performance.now();
+        const calcResult = window.DiceMath.fullCalculation(settings.res, settings.bab, settings.atkDice, settings.cover);
+        // index.js returns the final distribution under `crushed`
+        const dist = calcResult && Array.isArray(calcResult.crushed) ? calcResult.crushed : [];
+        const t1 = performance.now();
+
+        renderSummary(settings, calcResult, dist);
+        renderBarChart(dist);
+        renderDistributionTable(dist);
+        setStatus(`Calculated final distribution in ${(t1 - t0).toFixed(1)}ms. (cover currently ignored)`);
+
+        return { settings, calcResult, dist };
+      }
+
+      async function copyDistributionCsv() {
+        const result = computeAndRender();
+        if (!result) return;
+        const { settings, calcResult, dist } = result;
+        const header = "sum,probability,percent,cumulative_percent";
+
+        let cumulative = 0;
+        const lines = dist.map(([sum, p]) => {
+          cumulative += p;
+          const cum = Math.min(1, cumulative);
+          return [sum, p, (p * 100), (cum * 100)].join(",");
+        });
+
+        const meta = [
+          `# res=${settings.res}, BAB=${settings.bab}, atkDice=${settings.atkDice}, cover=${settings.cover}`,
+          `# averageDamage=${typeof calcResult?.averageDamage === "number" ? calcResult.averageDamage : "NaN"}, hitChance=${typeof calcResult?.hitChance === "number" ? calcResult.hitChance : "NaN"}`,
+        ].join("\n");
+        const csv = [meta, header, ...lines].join("\n");
+        try {
+          await navigator.clipboard.writeText(csv);
+          setStatus("Copied full distribution CSV.");
+        } catch {
+          const ta = document.createElement("textarea");
+          ta.value = csv;
+          ta.style.position = "fixed";
+          ta.style.left = "-9999px";
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          ta.remove();
+          setStatus("Copied full distribution CSV.");
+        }
+      }
+
+      calcBtn.addEventListener("click", computeAndRender);
+      resetBtn.addEventListener("click", () => {
+        resEl.value = "0";
+        babEl.value = "0";
+        atkDiceEl.value = "10";
+        coverEl.checked = false;
+        computeAndRender();
+      });
+      copyCsvBtn.addEventListener("click", copyDistributionCsv);
+
+      // Enter key calculates
+      resEl.addEventListener("keydown", (e) => { if (e.key === "Enter") calcBtn.click(); });
+      babEl.addEventListener("keydown", (e) => { if (e.key === "Enter") calcBtn.click(); });
+      atkDiceEl.addEventListener("keydown", (e) => { if (e.key === "Enter") calcBtn.click(); });
+
+      // Initial render (matches previous index.js default: 10d6)
+      computeAndRender();
+    })();
+  </script>
+</body>
+</html>
