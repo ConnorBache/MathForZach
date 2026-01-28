@@ -30,7 +30,7 @@
   function getBaseCaseArray() {
     // Keep your original semantics: one die is uniform over [0..SIDES-1]
     const array = [];
-    for (let i = 0; i < SIDES; i++) {
+    for (let i = 1; i <= SIDES; i++) {
       array.push([i, 1 / SIDES]);
     }
     return array;
@@ -69,6 +69,10 @@
   }
 
   function propNDice(n) {
+    if(n==0){
+      return[[0,1]];
+    }
+
     const dice = clampInt(n, 1, 1_000);
 
     // Build up globalArray until it includes dice dice.
@@ -123,7 +127,7 @@
   }
 
   function finishUp(crushedDist, baseAttackBonus, resistance){
-    const adjust = Number(baseAttackBonus || 0) + Number(resistance || 0);
+    const adjust = baseAttackBonus + resistance;
     for (let i = 0; i < crushedDist.length; i++) {
       crushedDist[i][0] += adjust;
     }
@@ -133,10 +137,20 @@
   function fullCalculation(resistance, baseAttackBonus, atkDice, cover){
     // Minimal, safe implementation: build dice dist, then apply additive adjustment.
     const distAtk = propNDice(atkDice);
+    console.log("distAtk");
+    console.log(distAtk); 
     const distDef = propNDice(resistance);
+    console.log("distDef");
+    console.log(distDef);
+    console.log("adjusted");
     const adjusted = subtractDistributions(distAtk, distDef);
+    console.log(adjusted);
     const finished = finishUp(adjusted, baseAttackBonus, resistance);
+    console.log("finished");
+    console.log(finished);
     const crushed = clampZeros(finished);
+    console.log("crushed");
+    console.log(crushed);
     const averageDamage = calculateAverageDamage(crushed);
     const hitChance = calculateHitChance(crushed);
     return {
