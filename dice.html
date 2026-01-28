@@ -191,7 +191,8 @@
         resEl.value = String(res);
         babEl.value = String(bab);
         atkDiceEl.value = String(atkDice);
-        const cover = Boolean(coverEl.checked); // unused for now
+        // Pass cover explicitly as true/false (checkbox)
+        const cover = coverEl.checked ? true : false;
         return { res, bab, atkDice, cover };
       }
 
@@ -283,7 +284,7 @@
         renderSummary(settings, calcResult, dist);
         renderBarChart(dist);
         renderDistributionTable(dist);
-        setStatus(`Calculated final distribution in ${(t1 - t0).toFixed(1)}ms. (cover currently ignored)`);
+        setStatus(`Calculated final distribution in ${(t1 - t0).toFixed(1)}ms.`);
 
         return { settings, calcResult, dist };
       }
