@@ -61,7 +61,7 @@
 
         <div class="w-44">
           <label class="text-xs uppercase tracking-wider subtle">atkDice</label>
-          <input id="atkDice" type="number" min="1" max="1000" value="10"
+          <input id="atkDice" type="number" min="0" max="1000" value="10"
                  class="cell ring mt-1 w-full rounded-xl px-3 py-2 ring-0 ring-transparent focus:ring-2 focus:ring-cyan-300"
                  placeholder="10" />
         </div>
@@ -193,7 +193,7 @@
       function getSettingsFromUI() {
         const res = clampInt(resEl.value, -1_000_000, 1_000_000);
         const bab = clampInt(babEl.value, -1_000_000, 1_000_000);
-        const atkDice = clampInt(atkDiceEl.value, 1, 1000);
+        const atkDice = clampInt(atkDiceEl.value, 0, 1000);
         resEl.value = String(res);
         babEl.value = String(bab);
         atkDiceEl.value = String(atkDice);
