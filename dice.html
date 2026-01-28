@@ -68,7 +68,12 @@
 
         <label class="flex items-center gap-2 select-none">
           <input id="cover" type="checkbox" class="h-4 w-4 accent-cyan-400" />
-          <span class="text-sm subtle">Cover (unused for now)</span>
+          <span class="text-sm subtle">Cover</span>
+        </label>
+
+        <label class="flex items-center gap-2 select-none">
+          <input id="doubleDefense" type="checkbox" class="h-4 w-4 accent-cyan-400" />
+          <span class="text-sm subtle">Double defense</span>
         </label>
 
         <div class="flex gap-2 no-print">
@@ -162,6 +167,7 @@
       const babEl = $("bab");
       const atkDiceEl = $("atkDice");
       const coverEl = $("cover");
+      const doubleDefenseEl = $("doubleDefense");
 
       function setStatus(text) {
         statusEl.textContent = text || "";
@@ -193,7 +199,8 @@
         atkDiceEl.value = String(atkDice);
         // Pass cover explicitly as true/false (checkbox)
         const cover = coverEl.checked ? true : false;
-        return { res, bab, atkDice, cover };
+        const doubleDefense = doubleDefenseEl.checked ? true : false;
+        return { res, bab, atkDice, cover, doubleDefense };
       }
 
       function safePowInt(base, exp) {
@@ -206,11 +213,11 @@
         return String(Math.round(n));
       }
 
-      function renderSummary({ res, bab, atkDice, cover }, calcResult, dist) {
+      function renderSummary({ res, bab, atkDice, cover, doubleDefense }, calcResult, dist) {
         const sides = 6; // always d6
 
         const rows = [
-          ["Inputs", `res=${res}, BAB=${bab}, atkDice=${atkDice}, cover=${cover}`],
+          ["Inputs", `res=${res}, BAB=${bab}, atkDice=${atkDice}, cover=${cover}, doubleDefense=${doubleDefense}`],
           ["Hit chance", typeof calcResult?.hitChance === "number" ? formatPercent(calcResult.hitChance) : "—"],
           ["Average damage", typeof calcResult?.averageDamage === "number" ? calcResult.averageDamage.toFixed(6) : "—"],
           ["Distinct sums (rows)", Array.isArray(dist) ? String(dist.length) : "—"],
@@ -276,7 +283,14 @@
 
         const settings = getSettingsFromUI();
         const t0 = performance.now();
-        const calcResult = window.DiceMath.fullCalculation(settings.res, settings.bab, settings.atkDice, settings.cover);
+        // Pass res as-entered; index.js applies doubleDefense internally.
+        const calcResult = window.DiceMath.fullCalculation(
+          settings.res,
+          settings.bab,
+          settings.atkDice,
+          settings.cover,
+          settings.doubleDefense
+        );
         // index.js returns the final distribution under `crushed`
         const dist = calcResult && Array.isArray(calcResult.crushed) ? calcResult.crushed : [];
         const t1 = performance.now();
@@ -303,7 +317,7 @@
         });
 
         const meta = [
-          `# res=${settings.res}, BAB=${settings.bab}, atkDice=${settings.atkDice}, cover=${settings.cover}`,
+          `# res=${settings.res}, BAB=${settings.bab}, atkDice=${settings.atkDice}, cover=${settings.cover}, doubleDefense=${settings.doubleDefense}`,
           `# averageDamage=${typeof calcResult?.averageDamage === "number" ? calcResult.averageDamage : "NaN"}, hitChance=${typeof calcResult?.hitChance === "number" ? calcResult.hitChance : "NaN"}`,
         ].join("\n");
         const csv = [meta, header, ...lines].join("\n");
@@ -329,6 +343,7 @@
         babEl.value = "0";
         atkDiceEl.value = "10";
         coverEl.checked = false;
+        doubleDefenseEl.checked = false;
         computeAndRender();
       });
       copyCsvBtn.addEventListener("click", copyDistributionCsv);
