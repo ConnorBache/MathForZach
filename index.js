@@ -127,25 +127,47 @@
   }
 
   function finishUp(crushedDist, baseAttackBonus, resistance){
-    const adjust = baseAttackBonus + resistance;
+    let adjust=0;
+    if(cover){
+      adjust=resistance;
+    }
+    else{
+      adjust=baseAttackBonus + resistance;
+    }
     for (let i = 0; i < crushedDist.length; i++) {
       crushedDist[i][0] += adjust;
     }
     return crushedDist;
   }
 
+  function accountForCover(distAtk, baseAttackBonus){
+    let newArr = [];
+    for (let i = 0; i < distAtk.length; i++) {
+      if((distAtk[i][0]+baseAttackBonus)%2==0){
+        newArr.push([0.5*(distAtk[i][0] + baseAttackBonus), distAtk[i][1]]);
+      }
+      else{
+        newArr.push([Math.floor(0.5*(distAtk[i][0] + baseAttackBonus)), distAtk[i][1]]);
+      }
+    }
+    return newArr;
+  }
+
   function fullCalculation(resistance, baseAttackBonus, atkDice, cover){
     // Minimal, safe implementation: build dice dist, then apply additive adjustment.
-    const distAtk = propNDice(atkDice);
+    let distAtk = propNDice(atkDice);
     console.log("distAtk");
     console.log(distAtk); 
+    if(cover){
+      distAtk = accountForCover(distAtk, baseAttackBonus);
+    }
     const distDef = propNDice(resistance);
     console.log("distDef");
     console.log(distDef);
     console.log("adjusted");
     const adjusted = subtractDistributions(distAtk, distDef);
     console.log(adjusted);
-    const finished = finishUp(adjusted, baseAttackBonus, resistance);
+    const finished = finishUp(adjusted, baseAttackBonus, resistance, cover);
     console.log("finished");
     console.log(finished);
     const crushed = clampZeros(finished);
